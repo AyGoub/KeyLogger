@@ -1,0 +1,44 @@
+# Educational Keylogger Requirements
+# Version: 2.0
+# For learning and ethical testing purposes only
+
+# Core dependencies (required for all platforms)
+pynput>=1.7.6              # Cross-platform input capture
+cryptography>=41.0.0       # AES encryption and security
+schedule>=1.2.0            # Task scheduling for email reports
+psutil>=5.9.0              # Process and system monitoring
+requests>=2.31.0           # HTTP communications (future features)
+
+# Email functionality
+smtplib                    # Built-in Python SMTP (no install needed)
+email                      # Built-in Python email (no install needed)
+
+# System integration  
+json                       # Built-in Python JSON (no install needed)
+sqlite3                    # Built-in Python SQLite (no install needed)
+
+# For executable building
+pyinstaller>=5.13.0        # Create standalone executables
+
+# Development and testing (optional)
+pytest>=7.4.0             # Unit testing framework
+black>=23.7.0             # Code formatting
+flake8>=6.0.0             # Code linting and style checking
+
+# Platform-specific optional dependencies
+# Windows: pywin32>=306     # Windows API access (uncomment if needed)
+# macOS: pyobjc>=9.0       # macOS API access (uncomment if needed)
+
+# Documentation generation (optional)
+# sphinx>=7.1.0           # Documentation generator
+# myst-parser>=2.0.0      # Markdown parser for Sphinx
+# 
+# Windows:
+#   pip install pywin32 wmi
+# 
+# Linux: 
+#   sudo apt-get install python3-dev
+#   pip install prctl python-crontab
+# 
+# Additional security:
+#   pip install bcrypt

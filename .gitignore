@@ -31,19 +31,23 @@ ENV/
 env.bak/
 venv.bak/
 
-# Log Files and Generated Content
-logs/
-*.log
-*.txt
-*.enc
-*.db
-*.sqlite
-*.sqlite3
+# Log Files and Generated Content  
+logs/*.txt
+logs/*.log
+logs/*.enc
+logs/*.db
+logs/*.sqlite
+logs/*.sqlite3
+keylogger_system.log
+keylog.txt
+keylog.enc
 
-# Encryption Keys
+# Encryption Keys (security sensitive)
 *.key
 .*.key
 encryption.*
+logs/*.key
+logs/.*.key
 
 # Build Artifacts
 *.spec
@@ -106,6 +110,12 @@ docs/build/
 
 # Temporary Files
 *.tmp
+
+# Exception: Important project files that should NOT be ignored
+!requirements.txt
+!README.md
+!LICENSE
+!main.py
 *.bak
 *.backup
 temp/
