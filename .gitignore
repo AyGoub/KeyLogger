@@ -48,6 +48,26 @@ encryption.*
 # Build Artifacts
 *.spec
 system-service*
+build/
+dist/
+*.pyc
+
+# Temporary files
+test_*.py
+*_test.py
+demo_*.py
+temp_*.py
+tmp_*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # IDE and Editor Files
 .vscode/

