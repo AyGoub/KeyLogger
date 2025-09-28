@@ -1,0 +1,39 @@
+{
+  "keylogger": {
+    "enabled": true,
+    "log_file": "logs/demo_keylog.txt",
+    "encrypted_log_file": "logs/demo_keylog.enc",
+    "log_special_keys": true,
+    "debug_mode": true
+  },
+  "encryption": {
+    "enabled": true,
+    "key_file": ".demo.key",
+    "algorithm": "AES-256"
+  },
+  "stealth": {
+    "enabled": false,
+    "process_name": "Demo Keylogger",
+    "hide_console": false,
+    "anti_vm": false,
+    "anti_debug": false
+  },
+  "persistence": {
+    "startup_enabled": false,
+    "watchdog_enabled": false,
+    "service_name": "DemoKeylogger"
+  },
+  "transmission": {
+    "enabled": false,
+    "method": "none",
+    "interval": 3600,
+    "email": {
+      "smtp_server": "demo.example.com",
+      "smtp_port": 587,
+      "username": "demo@example.com",
+      "password": "demo_password",
+      "to_email": "demo@example.com",
+      "subject": "Demo Keylog Report"
+    }
+  }
+}

