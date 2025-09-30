@@ -1,44 +1,43 @@
 # Educational Keylogger Requirements
-# Version: 2.0
-# For learning and ethical testing purposes only
+# Version: 2.1 - Enhanced Edition
+# For cybersecurity education and authorized testing only
 
 # Core dependencies (required for all platforms)
-pynput>=1.7.6              # Cross-platform input capture
-cryptography>=41.0.0       # AES encryption and security
-schedule>=1.2.0            # Task scheduling for email reports
-psutil>=5.9.0              # Process and system monitoring
-requests>=2.31.0           # HTTP communications (future features)
+pynput>=1.7.6              # Cross-platform input capture with enhanced detection
+cryptography>=41.0.0       # AES-256 Fernet encryption and security
+schedule>=1.2.0            # Task scheduling for automated email reports
+psutil>=5.9.0              # System and process monitoring for stealth features
+requests>=2.31.0           # HTTP communications for future enhancements
 
-# Email functionality
-smtplib                    # Built-in Python SMTP (no install needed)
-email                      # Built-in Python email (no install needed)
+# Development and testing dependencies
+pytest>=7.4.0             # Comprehensive unit testing framework
+black>=23.7.0             # Python code formatting and style
+flake8>=6.0.0             # Code linting and quality checking
 
-# System integration  
-json                       # Built-in Python JSON (no install needed)
-sqlite3                    # Built-in Python SQLite (no install needed)
-
-# For executable building
+# Optional: Advanced features
 pyinstaller>=5.13.0        # Create standalone executables
 
-# Development and testing (optional)
-pytest>=7.4.0             # Unit testing framework
-black>=23.7.0             # Code formatting
-flake8>=6.0.0             # Code linting and style checking
+# Built-in Python modules (no installation required)
+# smtplib    - SMTP email functionality
+# email      - Email message composition and handling
+# json       - Configuration file parsing
+# sqlite3    - Local database storage
+# threading  - Multi-threaded operations
+# datetime   - Timestamp management
+# pathlib    - Modern path handling
+# logging    - Comprehensive logging system
 
-# Platform-specific optional dependencies
-# Windows: pywin32>=306     # Windows API access (uncomment if needed)
-# macOS: pyobjc>=9.0       # macOS API access (uncomment if needed)
-
-# Documentation generation (optional)
-# sphinx>=7.1.0           # Documentation generator
-# myst-parser>=2.0.0      # Markdown parser for Sphinx
-# 
+# Platform-specific dependencies (uncomment as needed):
 # Windows:
-#   pip install pywin32 wmi
-# 
-# Linux: 
-#   sudo apt-get install python3-dev
-#   pip install prctl python-crontab
-# 
-# Additional security:
-#   pip install bcrypt
+# pywin32>=306              # Windows API access for advanced features
+# wmi>=1.5.1               # Windows Management Instrumentation
+
+# macOS:
+# pyobjc>=9.0              # macOS Objective-C bridge for system access
+
+# Linux (install via system package manager):
+# sudo apt-get install python3-dev xdotool wmctrl xprop
+
+# Security enhancements (optional):
+# bcrypt>=4.0.1            # Additional password hashing
+# keyring>=24.0.0          # Secure credential storage

